@@ -26,11 +26,12 @@ class Post {
 
 class Tag {
     static id;
-    constructor(name = '', colour, id) {
+    constructor(name = '', colour, id, description = '') {
         this.name = name,
         this.url_name = formatUrl(name)
         this.id = id || newId(),
         this.colour = colour || 'blue', 
+        this.description = description,
         this.saved = false
     }
 }
@@ -97,7 +98,7 @@ class Blogger {
     readPostFromFile(data) {
         const parsed = JSON.parse(data)
 
-        let post =  new Post(parsed.name, new Date(parsed.date), parsed.author, parsed.tags, parsed.body, parsed.id)
+        let post =  new Post(parsed.name, new Date(parsed.date), parsed.author, parsed.tags, parsed.body, parsed.id, parsed.description)
         post.edited = parsed.edited || undefined
         return post
     }
@@ -105,7 +106,7 @@ class Blogger {
     readTagFromFile(data) {
         const parsed = JSON.parse(data)
 
-        let tag = new Tag(parsed.name, parsed.colour, parsed.id)
+        let tag = new Tag(parsed.name, parsed.colour, parsed.id, parsed.description)
         return tag
     }
 
