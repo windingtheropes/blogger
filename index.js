@@ -195,7 +195,6 @@ class Blogger {
 
 }
 
-module.exports.BloggerConfig = BloggerConfig
 module.exports.Blogger = Blogger
 module.exports.Post = Post
 module.exports.Tag = Tag
