@@ -107,7 +107,7 @@ class Blogger {
     }
 
     getPostById(id) {
-        return this.#posts.filter(p => p.id == id)
+        return this.#posts.find(p => p.id == id)
     }
 
     // Get a post from the table based on a query object. By default, results are exclusive, meaning they must meet all criteria in the query object. If inclusive is set to true, a result must only meet one of the criterea to be returned, a dirty get.
