@@ -1,8 +1,8 @@
-const { readdirSync, readFileSync, writeFileSync, write } = require("fs")
+const { readdirSync, readFileSync, writeFileSync, rmSync } = require("fs")
 const {join} = require("path")
 
 class Post {
-    constructor(name = '', date = new Date(), author = '', tags = [], body = '', id) {
+    constructor(name = '', date = new Date(), author = '', tags = [], body = '' ,id) {
         this.name = name,
         this.url_name = this.formatUrl(name),
         this.date = date,
@@ -48,6 +48,7 @@ class Blogger {
             delete objectToSave.saved
             delete objectToSave.body
 
+            if(p.delete) return rmSync(join(this.storageDir, p.id.toString()))
             // save the file, and note it as so in the table
             writeFileSync(join(this.storageDir, p.id.toString()), `${JSON.stringify(p)}\n${body}`)
             p.saved = true
@@ -59,7 +60,7 @@ class Blogger {
     getPage(id) {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-        const post = this.getPost(id)
+        const post = this.getPost({id:id})[0]
 
         if(!post) return undefined
         const template_html = readFileSync(this.template).toString()
@@ -85,6 +86,8 @@ class Blogger {
     readPostFromFile(data) {
         const lines = data.split('\n')
         const metadata = JSON.parse(lines[0])
+
+        // skip index 0, which is the metadata line
         const body = lines.filter((v, i) => i !== 0).join('\n')
         let post =  new Post(metadata.name, new Date(metadata.date), metadata.author, metadata.tags, body, metadata.id)
         post.edited = metadata.edited || undefined
@@ -103,16 +106,25 @@ class Blogger {
         return Math.max(0, ...this.#posts.map(p => p.id)) + 1
     }
 
-    // Get a post from the table given an id
-    getPost(id) {
-        return this.#posts.find(p => p.id == id)
+    // Get a post from the table based on a query object. By default, results are exclusive, meaning they must meet all criteria in the query object. If inclusive is set to true, a result must only meet one of the criterea to be returned, a dirty get.
+    getPost(query = {}, inclusive=false) {
+        const results = []
+        for(let key in query) {
+            const value = query[key]
+            const keyResults = this.#posts.filter(p => p[key] == value).filter(p => !p.delete);
+            
+            if(inclusive == false && keyResults.length == 0) return undefined
+            results.push(...keyResults)
+        }
+
+        return results
     }
 
     // Edit a post from the table
     editPost(newData) {
         const {id} = newData
 
-        const post = this.getPost(id)
+        const post = this.getPost({id:id})[0]
 
         if(!post) return
 
@@ -122,6 +134,14 @@ class Blogger {
         newPost.saved = false
 
         this.pushPost(newPost, true)
+    }
+
+    // Remove a post from the table, deletion is cached by state until .save is run
+    deletePost(id) {
+        const post = this.getPost({id:id})[0]
+        post.delete = true
+
+        return this
     }
 
     // Add a post to the table
