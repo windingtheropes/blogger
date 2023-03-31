@@ -21,31 +21,36 @@ class Post {
 }
 
 class Blogger {
+    #posts;
     constructor(storageDir, template) {
         this.storageDir = storageDir,
         this.template = template,
-        this.posts = []
+        this.#posts = []
     }
 
-    // Load the table from storage
+    // Load the post table from storage
     load() {
         const children = readdirSync(this.storageDir)
-        this.posts = this.posts.filter(p => p.saved == false)
+        this.#posts = this.#posts.filter(p => p.saved == false)
         for(let file of children) {
             this.pushPost(this.readPostFromFile(readFileSync(join(this.storageDir, file)).toString()))
-            // this.posts.push(this.jsonToPost(readFileSync(join(this.storageDir, file))))
         }
         return this
     }
 
     // Save the table to storage
     save() {
-        this.posts.forEach(p => {
-            const objectToSave = p
-            objectToSave.saved = true
+        this.#posts.forEach(p => {
             const body = p.body
-            objectToSave.body = undefined
+
+            // Clone the post then remove useless properties when saving
+            const objectToSave = {...p}
+            delete objectToSave.saved
+            delete objectToSave.body
+
+            // save the file, and note it as so in the table
             writeFileSync(join(this.storageDir, p.id.toString()), `${JSON.stringify(p)}\n${body}`)
+            p.saved = true
         })
         return this
     }
@@ -95,12 +100,12 @@ class Blogger {
 
     // Gets a new, unused id for creating a new post
     newId() {
-        return Math.max(0, ...this.posts.map(p => p.id)) + 1
+        return Math.max(0, ...this.#posts.map(p => p.id)) + 1
     }
 
     // Get a post from the table given an id
     getPost(id) {
-        return this.posts.find(p => p.id == id)
+        return this.#posts.find(p => p.id == id)
     }
 
     // Edit a post from the table
@@ -121,14 +126,14 @@ class Blogger {
 
     // Add a post to the table
     pushPost(data, overwrite=false) {
-        if(this.posts.find(o => o.id == data.id) && !overwrite) {  data.id = this.newId(); this.posts.push(data) }
-        else { this.posts.push(data) }
+        if(this.#posts.find(o => o.id == data.id) && !overwrite) {  data.id = this.newId(); this.#posts.push(data) }
+        else { this.#posts.push(data) }
         return this
     }
 
     // Get the references (name and id) for all posts
     getReferences() {
-        return this.posts.map(p => ({id: p.id, name: p.url_name}))
+        return this.#posts.map(p => ({id: p.id, name: p.url_name}))
     }
 }
 
