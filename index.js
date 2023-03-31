@@ -1,4 +1,4 @@
-const { readdirSync, readFileSync, writeFileSync } = require("fs")
+const { readdirSync, readFileSync, writeFileSync, write } = require("fs")
 const {join} = require("path")
 
 class Post {
@@ -32,7 +32,7 @@ class Blogger {
         const children = readdirSync(this.storageDir)
         this.posts = this.posts.filter(p => p.saved == false)
         for(let file of children) {
-            this.pushPost(this.jsonToPost(readFileSync(join(this.storageDir, file))))
+            this.pushPost(this.readPostFromFile(readFileSync(join(this.storageDir, file)).toString()))
             // this.posts.push(this.jsonToPost(readFileSync(join(this.storageDir, file))))
         }
         return this
@@ -41,8 +41,11 @@ class Blogger {
     // Save the table to storage
     save() {
         this.posts.forEach(p => {
-            p.saved = true
-            writeFileSync(join(this.storageDir, p.id.toString()), JSON.stringify(p))
+            const objectToSave = p
+            objectToSave.saved = true
+            const body = p.body
+            objectToSave.body = undefined
+            writeFileSync(join(this.storageDir, p.id.toString()), `${JSON.stringify(p)}\n${body}`)
         })
         return this
     }
@@ -52,14 +55,14 @@ class Blogger {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
         const post = this.getPost(id)
+
         if(!post) return undefined
-    
         const template_html = readFileSync(this.template).toString()
     
         const month = months[post.date.getMonth()]
         const day = post.date.getDate();
         const year = post.date.getFullYear();
-        const time = `${post.date.getHours()}:${post.date.getMinutes()}`    
+        const time = `${post.date.getHours()}:${post.date.getMinutes() < 10 ? '0': ''}${post.date.getMinutes()}`    
     
         const html =  template_html
             .replaceAll('{TITLE}', post.name)
@@ -73,11 +76,13 @@ class Blogger {
         return html
     }
 
-    // Convert json to a post object
-    jsonToPost(json) {
-        const parsed = JSON.parse(json)
-        let post =  new Post(parsed.name, new Date(parsed.date), parsed.author, parsed.tags, parsed.body, parsed.id)
-        post.edited = parsed.edited || undefined
+    // Convert a formatted blog file to a post object
+    readPostFromFile(data) {
+        const lines = data.split('\n')
+        const metadata = JSON.parse(lines[0])
+        const body = lines.filter((v, i) => i !== 0).join('\n')
+        let post =  new Post(metadata.name, new Date(metadata.date), metadata.author, metadata.tags, body, metadata.id)
+        post.edited = metadata.edited || undefined
         return post
     }
 
