@@ -10,32 +10,17 @@ const newId = () => {
 
 class Post {
     static id;
-    constructor(name = '', date = new Date(), author = '', tags = [], body = '', id) {
+    constructor(name = '', date = new Date(), author = '', tags = [], body = '', id, description = '') {
         this.name = name,
         this.url_name = formatUrl(name),
         this.date = date,
         this.edited = undefined,
         this.author = author,
+        this.description = description,
         this.tags = tags,
         this.body = body
         this.id = id || newId(),
         this.saved = false
-    }
-}
-
-class BloggerConfig { 
-    constructor(storageDir, template) {
-        this.storageDir = storageDir,
-        this.template = template,
-        this.tagTemplate = undefined,
-        this.tagUrl = undefined
-    }
-
-    setTagTemplate(i) {
-        this.tagTemplate = i
-    }
-    setTagUrl(i) {
-        this.tagUrl = i
     }
 }
 
@@ -48,34 +33,27 @@ class Tag {
         this.colour = colour || 'blue', 
         this.saved = false
     }
-
-    getHtml(template, url) {
-        return template
-                .replace("{URL}", url)
-                .replace("{NAME}", this.name)
-                .replace("{URL_NAME}", this.url_name)
-    }
 }
 
 class Blogger {
-    constructor(config) {
-        this.config = config
+    constructor(storageDir = './blog') {
+        this.storageDir = storageDir,
         this.posts = [],
         this.tags = []
     }
 
     // Load the tables from storage
     load() {
-        const posts = readdirSync(join(this.config.storageDir, 'posts'))
+        const posts = readdirSync(join(this.storageDir, 'posts'))
         this.posts = this.posts.filter(p => p.saved == false)
         for(let file of posts) {
-            this.pushPost(this.readPostFromFile(readFileSync(join(this.config.storageDir, 'posts', file)).toString()))
+            this.pushPost(this.readPostFromFile(readFileSync(join(this.storageDir, 'posts', file)).toString()))
         }
 
-        const tags = readdirSync(join(this.config.storageDir, 'tags'))
+        const tags = readdirSync(join(this.storageDir, 'tags'))
         this.tags = this.tags.filter(t => t.saved == false)
         for(let file of tags) {
-            this.pushTag(this.readTagFromFile(readFileSync(join(this.config.storageDir, 'tags', file)).toString()))
+            this.pushTag(this.readTagFromFile(readFileSync(join(this.storageDir, 'tags', file)).toString()))
         }
         return this
     }
@@ -113,38 +91,6 @@ class Blogger {
             }
         })
         return this
-    }
-
-    // Get the html page for a given post by id
-    getPage(id) {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-        const post = this.getPostById(id)
-
-        if(!post || post.delete) return undefined
-        const template_html = readFileSync(this.config.template).toString()
-    
-        const month = months[post.date.getMonth()]
-        const day = post.date.getDate();
-        const year = post.date.getFullYear();
-        const time = `${post.date.getHours()}:${post.date.getMinutes() < 10 ? '0': ''}${post.date.getMinutes()}`    
-        
-        const tagsHtml = (() => {
-            const validTags = post.tags.filter(postTagId => this.tags.find(validTag => validTag.id == postTagId)).map(id => this.getTagById(id))
-            return validTags.map(t => t.getHtml(this.config.tagTemplate, this.config.tagUrl)).join('')
-        })()
-
-        const html =  template_html
-            .replaceAll('{TITLE}', post.name)
-            .replaceAll('{AUTHOR}', post.author)
-            .replaceAll('{MONTH}', month)
-            .replaceAll('{DAY}', day)
-            .replaceAll('{YEAR}', year)
-            .replaceAll('{TIME}', time)
-            .replace('{TAGS}', tagsHtml)
-            .replaceAll('{BODY}', post.body)
-    
-        return html
     }
 
     // Convert a formatted blog file to a post object
