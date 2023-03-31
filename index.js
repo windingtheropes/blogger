@@ -60,7 +60,7 @@ class Blogger {
     getPage(id) {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-        const post = this.getPost({id:id})[0]
+        const post = this.getPostById(id)
 
         if(!post) return undefined
         const template_html = readFileSync(this.template).toString()
@@ -106,8 +106,12 @@ class Blogger {
         return Math.max(0, ...this.#posts.map(p => p.id)) + 1
     }
 
+    getPostById(id) {
+        return this.#posts.filter(p => p.id == id)
+    }
+
     // Get a post from the table based on a query object. By default, results are exclusive, meaning they must meet all criteria in the query object. If inclusive is set to true, a result must only meet one of the criterea to be returned, a dirty get.
-    getPost(query = {}, inclusive=false) {
+    getPosts(query = {}, inclusive=false) {
         const results = []
         for(let key in query) {
             const value = query[key]
@@ -124,7 +128,7 @@ class Blogger {
     editPost(newData) {
         const {id} = newData
 
-        const post = this.getPost({id:id})[0]
+        const post = this.getPostById(id)
 
         if(!post) return
 
@@ -138,7 +142,7 @@ class Blogger {
 
     // Remove a post from the table, deletion is cached by state until .save is run
     deletePost(id) {
-        const post = this.getPost({id:id})[0]
+        const post = this.getPostById(id)
         post.delete = true
 
         return this
