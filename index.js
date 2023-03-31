@@ -112,6 +112,7 @@ class Blogger {
     // Create a new post
     addPost(name, date = new Date(), author, tags = [], body) {
         const newPost = new Post(name, date, author, tags, body)
+        if(this.posts.find(p => p.url_name == newPost.url_name)) return this
         this.pushPost(newPost)
         return this
     }
