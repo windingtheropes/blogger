@@ -118,7 +118,9 @@ class Blogger {
 
     addTag(name) {
         const newTag = new Tag(name)
+        if(this.tags.find(t => t.url_name == newTag.url_name)) return this
         this.pushTag(newTag)
+        return this
     }
 
     getPostById(id) {
