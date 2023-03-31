@@ -48,10 +48,14 @@ class Blogger {
             delete objectToSave.saved
             delete objectToSave.body
 
-            if(p.delete) return rmSync(join(this.storageDir, p.id.toString()))
-            // save the file, and note it as so in the table
-            writeFileSync(join(this.storageDir, p.id.toString()), `${JSON.stringify(p)}\n${body}`)
-            p.saved = true
+            if(p.delete) {
+                rmSync(join(this.storageDir, p.id.toString())); 
+                this.#posts = this.#posts.filter(post => post.id == p.id);
+            }
+            else {
+                writeFileSync(join(this.storageDir, p.id.toString()), `${JSON.stringify(objectToSave)}\n${body}`)
+                p.saved = true
+            }
         })
         return this
     }
@@ -62,7 +66,7 @@ class Blogger {
 
         const post = this.getPostById(id)
 
-        if(!post) return undefined
+        if(!post || post.delete) return undefined
         const template_html = readFileSync(this.template).toString()
     
         const month = months[post.date.getMonth()]
