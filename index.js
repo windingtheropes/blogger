@@ -65,6 +65,7 @@ class Blogger {
             // Clone the post then remove useless properties when saving
             const objectToSave = {...p}
             delete objectToSave.saved
+            delete objectToSave.url_name
 
             if(p.delete) {
                 rmSync(join(this.config.storageDir, p.id.toString())); 
