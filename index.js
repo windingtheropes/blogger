@@ -7,6 +7,13 @@ const formatUrl = (text) => {
 const newId = () => {
     return new Date().getTime() - 1680292406980 + (Math.floor(Math.random() * 1000))
 }
+const Status = {
+	Error: Symbol("error"),
+    Ok: Symbol("ok"),
+}
+const Error = {
+	Exists: Symbol("exists")
+}
 
 class Post {
     static id;
@@ -68,11 +75,11 @@ class Blogger {
             delete objectToSave.url_name
 
             if(p.delete) {
-                rmSync(join(this.config.storageDir, p.id.toString())); 
+                rmSync(join(this.storageDir, p.id.toString())); 
                 this.posts = this.posts.filter(post => post.id == p.id);
             }
             else {
-                writeFileSync(join(this.config.storageDir, 'posts', p.id.toString()), JSON.stringify(objectToSave))
+                writeFileSync(join(this.storageDir, 'posts', p.id.toString()), JSON.stringify(objectToSave))
                 p.saved = true
             }
         })
@@ -84,11 +91,11 @@ class Blogger {
             delete objectToSave.body
 
             if(t.delete) {
-                rmSync(join(this.config.storageDir, 'tags', t.id.toString())); 
+                rmSync(join(this.storageDir, 'tags', t.id.toString())); 
                 this.posts = this.posts.filter(tag => tag.id == t.id);
             }
             else {
-                writeFileSync(join(this.config.storageDir, 'tags', t.id.toString()), `${JSON.stringify(objectToSave)}`)
+                writeFileSync(join(this.storageDir, 'tags', t.id.toString()), `${JSON.stringify(objectToSave)}`)
                 t.saved = true
             }
         })
@@ -112,11 +119,11 @@ class Blogger {
     }
 
     // Create a new post
-    addPost(name, date = new Date(), author, tags = [], body) {
-        const newPost = new Post(name, date, author, tags, body)
-        if(this.posts.find(p => p.url_name == newPost.url_name)) return this
+    addPost(name, date = new Date(), author, tags = [], body, description) {
+        const newPost = new Post(name, date, author, tags, body, description)
+        if(this.posts.find(p => p.url_name == newPost.url_name)) { return { status: Status.Error, info: Error.Exists } }
         this.pushPost(newPost)
-        return this
+        return { status: Status.Ok }
     }
 
     addTag(name) {
@@ -199,6 +206,10 @@ class Blogger {
     }
 
 }
+
+
+module.exports.Errors = Error
+module.exports.Status = Status
 
 module.exports.Blogger = Blogger
 module.exports.Post = Post
