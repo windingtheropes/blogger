@@ -1,5 +1,5 @@
-const { readdirSync, readFileSync, writeFileSync, rmSync } = require("fs")
-const {join, format} = require("path")
+const { readdirSync, readFileSync, writeFileSync, rmSync, existsSync, mkdirSync } = require("fs")
+const { join } = require("path")
 
 const formatUrl = (text) => {
     return text.replaceAll(' ', '-').toLowerCase()
@@ -7,12 +7,12 @@ const formatUrl = (text) => {
 const newId = () => {
     return new Date().getTime() - 1680292406980 + (Math.floor(Math.random() * 1000)).toString()
 }
-const Status = {
-	Error: Symbol("error"),
-    Ok: Symbol("ok"),
-}
-const Error = {
-	Exists: Symbol("exists")
+
+class BloggerError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "BloggerError";
+    }
 }
 
 class Author {
@@ -29,7 +29,7 @@ class Author {
 class Post {
     static id;
     constructor(name = '', date = new Date(), author = '', tags = [], body = '', description = '', id) {
-        this.name = name,
+        this.name = name, 
         this.url_name = formatUrl(name),
         this.date = date,
         this.edited = undefined,
@@ -38,6 +38,7 @@ class Post {
         this.tags = tags,
         this.body = body
         this.id = id || newId(),
+        this.public = true;
         this.saved = false
     }
 }
@@ -61,9 +62,14 @@ class Blogger {
         this.tags = [],
         this.authors = []
     }
-
+    #checkDirectoryStructure() {
+        if (!existsSync(join(this.storageDir, 'authors'))) { mkdirSync(join(this.storageDir, 'authors')) }
+        if (!existsSync(join(this.storageDir, 'posts'))) { mkdirSync(join(this.storageDir, 'posts')) }
+        if (!existsSync(join(this.storageDir, 'tags'))) { mkdirSync(join(this.storageDir, 'tags')) }
+    }
     // Load the tables from storage
     load() {
+        this.#checkDirectoryStructure()
         const posts = readdirSync(join(this.storageDir, 'posts'))
         this.posts = this.posts.filter(p => p.saved == false)
         for(let file of posts) {
@@ -86,6 +92,7 @@ class Blogger {
 
     // Save the table to storage
     save() {
+        this.#checkDirectoryStructure()
         this.posts.forEach(p => {
             // Clone the post then remove useless properties when saving
             const objectToSave = {...p}
@@ -162,23 +169,26 @@ class Blogger {
     // Create a new post
     addPost(name, date = new Date(), author, tags = [], body, description) {
         const newPost = new Post(name, date, author, tags, body, description)
-        if(this.posts.find(p => p.url_name == newPost.url_name)) { return { status: Status.Error, info: Error.Exists } }
+        if(!name && name == '') throw new BloggerError("Name cannot be empty.")
+        if(this.posts.find(p => p.url_name == newPost.url_name)) throw new BloggerError("Post name already exists.")
         this.pushPost(newPost)
-        return { status: Status.Ok }
+        return
     }
 
     addTag(name, description, colour) {
         const newTag = new Tag(name, description, colour)
-        if(this.tags.find(t => t.url_name == newTag.url_name)) return this
+        if(!name && name == '') throw new BloggerError("Name cannot be empty.")
+        if(this.tags.find(t => t.url_name == newTag.url_name)) throw new BloggerError("Tag name already exists.")
         this.pushTag(newTag)
-        return this
+        return
     }
 
     addAuthor(name, bio) {
         const newAuthor = new Author(name, bio)
-        if(this.authors.find(a => a.url_name == newAuthor.url_name)) return this
+        if(!name && name == '') throw new BloggerError("Name cannot be empty.")
+        if(this.authors.find(a => a.url_name == newAuthor.url_name)) throw new BloggerError("Author name already exists.")
         this.pushAuthor(newAuthor)
-        return this
+        return
     }
 
     getPostById(id) {
@@ -193,34 +203,14 @@ class Blogger {
         return this.authors.find(a => a.id == id)
     }
 
-    // Get a post from the table based on a query object. By default, results are exclusive, meaning they must meet all criteria in the query object. If inclusive is set to true, a result must only meet one of the criterea to be returned, a dirty get.
-    getPosts(query = {}, inclusive=false) {
-        const results = []
-        for(let key in query) {
-            const value = query[key]
-            const keyResults = this.posts.filter(p => p[key] == value).filter(p => !p.delete);
-            
-            if(inclusive == false && keyResults.length == 0) return undefined
-            results.push(...keyResults)
-        }
-
-        return results
+    getPosts() {
+        return this.posts
     }
 
-    getTags(query = {}, limit=0, inclusive=false) {
-        let results = []
-        for(let key in query) {
-            const value = query[key]
-            const keyResults = this.tags.filter(p => p[key] == value).filter(p => !p.delete);
-            
-            if(inclusive == false && keyResults.length == 0) return undefined
-            results.push(...keyResults)
-
-        }
-        return results
+    getTags() {
+        return this.tags
     }
 
-    // Remove a post from the table, deletion is cached by state until .save is run
     deletePost(id) {
         const post = this.posts.find(p => p.id == id)
         post.delete = true
@@ -273,10 +263,7 @@ class Blogger {
 
 }
 
-
-module.exports.Errors = Error
-module.exports.Status = Status
-
+module.exports.ValidationError = BloggerError
 module.exports.Blogger = Blogger
 module.exports.Post = Post
 module.exports.Tag = Tag
