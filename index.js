@@ -263,7 +263,7 @@ class Blogger {
 
 }
 
-module.exports.ValidationError = BloggerError
+module.exports.BloggerError = BloggerError
 module.exports.Blogger = Blogger
 module.exports.Post = Post
 module.exports.Tag = Tag
