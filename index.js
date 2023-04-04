@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, writeFileSync, rmSync, existsSync, mkdirSync } from 'fs'
-import { join } from "path"
+import { format, join } from "path"
 
 const formatUrl = (text) => {
     return text.replaceAll(' ', '-').toLowerCase()
@@ -22,15 +22,18 @@ export class BloggerObject {
         this.id = id;
         this.saved = false;
     }
-
     edit(edits) {
-        const notAllowed = ['url_name', 'saved', 'id']
-        for(let e in edits) {
-            if(notAllowed.find(n => n == e)) continue
-            const edit = edits[e]
+        const ignore = ['saved', 'id']
+        for (let e in edits) {
+            if(ignore.find(i => i == e)) continue
 
-            this[e] = edit
+            const edit = edits[e]
+            if(edit !== undefined && edit !== '' && this[e]) {
+                this[e] = edit
+            }
         }
+        this.url_name = formatUrl(name)
+        this.edited = new Date()
     }
 }
 
@@ -49,8 +52,8 @@ export class Post extends BloggerObject {
         this.tags = tags;
         this.description = description;
         this.body = body;
+        this.published = true;
         this.edited = null;
-        this.public = false
     }
 }
 
@@ -68,7 +71,7 @@ export class Blogger {
             this.posts = [],
             this.tags = [],
             this.authors = []
-    }
+        }
     #checkDirectoryStructure() {
         if (!existsSync(join(this.storageDir, 'authors'))) { mkdirSync(join(this.storageDir, 'authors')) }
         if (!existsSync(join(this.storageDir, 'posts'))) { mkdirSync(join(this.storageDir, 'posts')) }
@@ -173,21 +176,42 @@ export class Blogger {
         return author
     }
 
+    editPost(id, edits) {
+        const post = this.posts.find(p=> p.id == id)
+        if (edits.name == '') throw new BloggerError("Name cannot be empty.");
+        if(edits.name && this.posts.find(p=>p.url_name == formatUrl(edits.name))) throw new BloggerError("Post name already exists.") 
+        post.edit(edits)
+    }
+
     // Create a new post
     addPost(name, date = new Date(), author, tags = [], body, description) {
         const newPost = new Post(name, date, author, tags, body, description)
         if (!name && name == '') throw new BloggerError("Name cannot be empty.")
-        if (this.posts.find(p => p.url_name == newPost.url_name)) throw new BloggerError("Author name already exists.")
+        if (this.posts.find(p => p.url_name == newPost.url_name)) throw new BloggerError("Post name already exists.")
         this.pushPost(newPost)
         return this
+    }
+
+    editTag(id, edits) {
+        const tag = this.tags.find(t=> t.id == id)
+        if (edits.name == '') throw new BloggerError("Name cannot be empty.");
+        if(edits.name && this.tags.find(t=>t.url_name == formatUrl(edits.name))) throw new BloggerError("Tag name already exists.") 
+        tag.edit(edits)
     }
 
     addTag(name, description, colour) {
         const newTag = new Tag(name, description, colour)
         if (!name && name == '') throw new BloggerError("Name cannot be empty.")
-        if (this.tags.find(t => t.url_name == newTag.url_name)) throw new BloggerError("Author name already exists.")
+        if (this.tags.find(t => t.url_name == newTag.url_name)) throw new BloggerError("Tag name already exists.")
         this.pushTag(newTag)
         return this
+    }
+
+    editAuthor(id, edits) {
+        const tag = this.tags.find(t=> t.id == id)
+        if (edits.name == '') throw new BloggerError("Name cannot be empty.");
+        if(edits.name && this.tags.find(t=>t.url_name == formatUrl(edits.name))) throw new BloggerError("Author name already exists.") 
+        tag.edit(edits)
     }
 
     addAuthor(name, bio) {
@@ -257,3 +281,4 @@ export class Blogger {
     }
 
 }
+
