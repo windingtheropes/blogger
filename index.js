@@ -32,7 +32,7 @@ export class BloggerObject {
                 this[e] = edit
             }
         }
-        this.url_name = formatUrl(name)
+        this.url_name = formatUrl(this.name)
         this.edited = new Date()
     }
 }
