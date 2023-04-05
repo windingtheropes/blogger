@@ -88,6 +88,26 @@ export class BloggerTable {
         else { this._content.push(data) }
         return this
     }
+
+    _save() {
+        const dir = `${this.childType.name.toLowerCase()}s`
+        this._content.forEach(o => {
+            // Clone the post then remove useless properties when saving
+            const objectToSave = { ...o }
+            delete objectToSave.saved
+            delete objectToSave.url_name
+            delete objectToSave.delete
+
+            if (o.delete) {
+                rmSync(join(this.storageDir, o.id.toString()));
+                this._content = this._content.filter(obj => obj.id !== o.id);
+            }
+            else {
+                writeFileSync(join(this.storageDir, dir, o.id.toString()), JSON.stringify(objectToSave))
+                o.saved = true
+            }
+        })
+    }
 }
 
 export class PostsTable extends BloggerTable {
@@ -126,25 +146,6 @@ export class PostsTable extends BloggerTable {
             this.push(this.readFromJson(readFileSync(join(this.storageDir, 'posts', file)).toString()))
         }
     }
-
-    _save() {
-        this._content.forEach(p => {
-            // Clone the post then remove useless properties when saving
-            const objectToSave = { ...p }
-            delete objectToSave.saved
-            delete objectToSave.url_name
-            delete objectToSave.delete
-
-            if (p.delete) {
-                rmSync(join(this.storageDir, p.id.toString()));
-                this._content = this._content.filter(post => post.id !== p.id);
-            }
-            else {
-                writeFileSync(join(this.storageDir, 'posts', p.id.toString()), JSON.stringify(objectToSave))
-                p.saved = true
-            }
-        })
-    }
 }
 
 export class TagsTable extends BloggerTable {
@@ -181,25 +182,6 @@ export class TagsTable extends BloggerTable {
             this._content.push(this.readFromJson(readFileSync(join(this.storageDir, 'tags', file)).toString()))
         }
     }
-
-    _save() {
-        this._content.forEach(t => {
-            // Clone the post then remove useless properties when saving
-            const objectToSave = { ...t }
-            delete objectToSave.saved
-            delete objectToSave.url_name
-            delete objectToSave.delete
-
-            if (t.delete) {
-                rmSync(join(this.storageDir, 'tags', t.id.toString()));
-                this.posts = this._content.filter(tag => tag.id != t.id);
-            }
-            else {
-                writeFileSync(join(this.storageDir, 'tags', t.id.toString()), `${JSON.stringify(objectToSave)}`)
-                t.saved = true
-            }
-        })
-    }
 }
 
 export class AuthorsTable extends BloggerTable {
@@ -235,24 +217,6 @@ export class AuthorsTable extends BloggerTable {
         for (let file of authors) {
             this._content.push(this.readFromJson(readFileSync(join(this.storageDir, 'authors', file)).toString()))
         }
-    }
-
-    _save() {
-        this.authors.forEach(a => {
-            // Clone the post then remove useless properties when saving
-            const objectToSave = { ...a }
-            delete objectToSave.saved
-            delete objectToSave.url_name
-
-            if (a.delete) {
-                rmSync(join(this.storageDir, 'authors', a.id.toString()));
-                this.posts = this.posts.filter(author => author.id == a.id);
-            }
-            else {
-                writeFileSync(join(this.storageDir, 'authors', a.id.toString()), `${JSON.stringify(objectToSave)}`)
-                a.saved = true
-            }
-        })
     }
 }
 
