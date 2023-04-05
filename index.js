@@ -69,80 +69,175 @@ export class Tag extends BloggerObject {
     }
 }
 
-export class Blogger {
-    posts;
-    tags;
-    authors;
+export class BloggerTable {
+    _content = [];
+    childType
 
-    constructor(storageDir = './blog') {
-        this.storageDir = storageDir,
-            this.posts = [],
-            this.tags = [],
-            this.authors = []
-        }
-    #checkDirectoryStructure() {
-        if (!existsSync(join(this.storageDir, 'authors'))) { mkdirSync(join(this.storageDir, 'authors')) }
-        if (!existsSync(join(this.storageDir, 'posts'))) { mkdirSync(join(this.storageDir, 'posts')) }
-        if (!existsSync(join(this.storageDir, 'tags'))) { mkdirSync(join(this.storageDir, 'tags')) }
+    constructor (childType, storageDir) {
+        this.childType = childType
+        this.storageDir = storageDir
     }
-    // Load the tables from storage
-    load() {
-        this.#checkDirectoryStructure()
-        const posts = readdirSync(join(this.storageDir, 'posts'))
-        this.posts = this.posts.filter(p => p.saved == false)
-        for (let file of posts) {
-            this.posts.push(this.readPostFromFile(readFileSync(join(this.storageDir, 'posts', file)).toString()))
-        }
 
-        const tags = readdirSync(join(this.storageDir, 'tags'))
-        this.tags = this.tags.filter(t => t.saved == false)
-        for (let file of tags) {
-            this.tags.push(this.readTagFromFile(readFileSync(join(this.storageDir, 'tags', file)).toString()))
-        }
+    get content() {
+        return this._content.filter(o => o.delete == false)
+    }
 
-        const authors = readdirSync(join(this.storageDir, 'authors'))
-        this.authors = this.authors.filter(a => a.saved == false)
-        for (let file of authors) {
-            this.authors.push(this.readAuthorFromFile(readFileSync(join(this.storageDir, 'authors', file)).toString()))
-        }
+    push(data) {
+        if(!data instanceof this.childType) throw new BloggerError("Data does not match childType.")
+        if (this._content.find(o => o.id == data.id)) { data.id = newId(); this._content.push(data) }
+        else { this._content.push(data) }
+        return this
+    }
+}
+
+export class PostsTable extends BloggerTable {
+    constructor (storageDir) {
+        super(Post, storageDir)
+    }
+
+    readFromJson(data) {
+        const parsed = JSON.parse(data)
+
+        let post = new Post(parsed.name, new Date(parsed.date), parsed.author, parsed.tags, parsed.body, parsed.description, parsed.id)
+        post.edited = parsed.edited || undefined
+        return post
+    }
+
+    addPost(data) {
+        if(!data instanceof this.childType) throw new BloggerError("Data does not match childType.")
+        if (!data.name || data.name == '') throw new BloggerError("Name cannot be empty.")
+        if (this._content.find(p => p.url_name == data.url_name)) throw new BloggerError("Post name already exists.")
+        this.push(data)
         return this
     }
 
-    // Save the table to storage
-    save() {
-        this.#checkDirectoryStructure()
-        this.posts.forEach(p => {
+    editPost(id, edits) {
+        const post = this._content.find(p=> p.id == id)
+        if(!post) return
+        if (edits.name == '') throw new BloggerError("Name cannot be empty.");
+        if(edits.name && this._content.find(p=>p.url_name == formatUrl(edits.name))) throw new BloggerError("Post name already exists.") 
+        post.edit(edits)
+    }
+
+    _load() {
+        const posts = readdirSync(join(this.storageDir, 'posts'))
+        this._content = this._content.filter(p => p.saved == false)
+        for (let file of posts) {
+            this.push(this.readFromJson(readFileSync(join(this.storageDir, 'posts', file)).toString()))
+        }
+    }
+
+    _save() {
+        this._content.forEach(p => {
             // Clone the post then remove useless properties when saving
             const objectToSave = { ...p }
             delete objectToSave.saved
             delete objectToSave.url_name
+            delete objectToSave.delete
 
             if (p.delete) {
                 rmSync(join(this.storageDir, p.id.toString()));
-                this.posts = this.posts.filter(post => post.id == p.id);
+                this._content = this._content.filter(post => post.id !== p.id);
             }
             else {
                 writeFileSync(join(this.storageDir, 'posts', p.id.toString()), JSON.stringify(objectToSave))
                 p.saved = true
             }
         })
+    }
+}
 
-        this.tags.forEach(t => {
+export class TagsTable extends BloggerTable {
+    constructor (storageDir) {
+        super(Tag, storageDir)
+    }
+
+    readFromJson(data) {
+        const parsed = JSON.parse(data)
+
+        let tag = new Tag(parsed.name, parsed.description, parsed.colour, parsed.id)
+        return tag
+    }
+
+    addPost(data) {
+        if(!data instanceof this.childType) throw new BloggerError("Data does not match childType.")
+        if (!data.name || data.name == '') throw new BloggerError("Name cannot be empty.")
+        if (this._content.find(p => p.url_name == data.url_name)) throw new BloggerError("Post name already exists.")
+        this.push(data)
+        return this
+    }
+
+    editTag(id, edits) {
+        const tag = this._content.find(t=> t.id == id)
+        if (edits.name == '') throw new BloggerError("Name cannot be empty.");
+        if(edits.name && this._content.find(t=>t.url_name == formatUrl(edits.name))) throw new BloggerError("Tag name already exists.") 
+        tag.edit(edits)
+    }
+
+    _load() {
+        const tags = readdirSync(join(this.storageDir, 'tags'))
+        this._content = this._content.filter(t => t.saved == false)
+        for (let file of tags) {
+            this._content.push(this.readFromJson(readFileSync(join(this.storageDir, 'tags', file)).toString()))
+        }
+    }
+
+    _save() {
+        this._content.forEach(t => {
             // Clone the post then remove useless properties when saving
             const objectToSave = { ...t }
             delete objectToSave.saved
             delete objectToSave.url_name
+            delete objectToSave.delete
 
             if (t.delete) {
                 rmSync(join(this.storageDir, 'tags', t.id.toString()));
-                this.posts = this.posts.filter(tag => tag.id == t.id);
+                this.posts = this._content.filter(tag => tag.id != t.id);
             }
             else {
                 writeFileSync(join(this.storageDir, 'tags', t.id.toString()), `${JSON.stringify(objectToSave)}`)
                 t.saved = true
             }
         })
+    }
+}
 
+export class AuthorsTable extends BloggerTable {
+    constructor (storageDir) {
+        super(Author, storageDir)
+    }
+
+    readFromJson(data) {
+        const parsed = JSON.parse(data)
+
+        let author = new Author(parsed.name, parsed.bio, parsed.id)
+        return author
+    }
+
+    addAuthor(data) {
+        if(!data instanceof this.childType) throw new BloggerError("Data does not match childType.")
+        if (!data.name && data.name == '') throw new BloggerError("Name cannot be empty.")
+        if (this._content.find(a => a.url_name == data.url_name)) throw new BloggerError("Author name already exists.")
+        this.push(data)
+        return this
+    }
+
+    editAuthor(id, edits) {
+        const author = this._content.find(a=> a.id == id)
+        if (edits.name == '') throw new BloggerError("Name cannot be empty.");
+        if(edits.name && this._content.find(t=>t.url_name == formatUrl(edits.name))) throw new BloggerError("Author name already exists.") 
+        author.edit(edits)
+    }
+
+    _load() {
+        const authors = readdirSync(join(this.storageDir, 'authors'))
+        this._content = this._content.filter(a => a.saved == false)
+        for (let file of authors) {
+            this._content.push(this.readFromJson(readFileSync(join(this.storageDir, 'authors', file)).toString()))
+        }
+    }
+
+    _save() {
         this.authors.forEach(a => {
             // Clone the post then remove useless properties when saving
             const objectToSave = { ...a }
@@ -158,117 +253,42 @@ export class Blogger {
                 a.saved = true
             }
         })
-        return this
     }
+}
 
-    // Convert a formatted blog file to a post object
-    readPostFromFile(data) {
-        const parsed = JSON.parse(data)
+export class Blogger {
+    posts;
+    tags;
+    authors;
 
-        let post = new Post(parsed.name, new Date(parsed.date), parsed.author, parsed.tags, parsed.body, parsed.description, parsed.id)
-        post.edited = parsed.edited || undefined
-        return post
+    constructor(storageDir = './blog') {
+        this.storageDir = storageDir,
+            this.posts = new PostsTable(this.storageDir),
+            this.tags = new TagsTable(this.storageDir),
+            this.authors = new AuthorsTable(this.storageDir)
+        }
+    #checkDirectoryStructure() {
+        if (!existsSync(join(this.storageDir, 'authors'))) { mkdirSync(join(this.storageDir, 'authors')) }
+        if (!existsSync(join(this.storageDir, 'posts'))) { mkdirSync(join(this.storageDir, 'posts')) }
+        if (!existsSync(join(this.storageDir, 'tags'))) { mkdirSync(join(this.storageDir, 'tags')) }
     }
-
-    readTagFromFile(data) {
-        const parsed = JSON.parse(data)
-
-        let tag = new Tag(parsed.name, parsed.description, parsed.colour, parsed.id)
-        return tag
-    }
-
-    readAuthorFromFile(data) {
-        const parsed = JSON.parse(data)
-
-        let author = new Author(parsed.name, parsed.bio, parsed.id)
-        return author
-    }
-
-    editPost(id, edits) {
-        const post = this.posts.find(p=> p.id == id)
-        if (edits.name == '') throw new BloggerError("Name cannot be empty.");
-        if(edits.name && this.posts.find(p=>p.url_name == formatUrl(edits.name))) throw new BloggerError("Post name already exists.") 
-        post.edit(edits)
-    }
-
-    // Create a new post
-    addPost(name, date = new Date(), author, tags = [], body, description) {
-        const newPost = new Post(name, date, author, tags, body, description)
-        if (!name && name == '') throw new BloggerError("Name cannot be empty.")
-        if (this.posts.find(p => p.url_name == newPost.url_name)) throw new BloggerError("Post name already exists.")
-        this.pushPost(newPost)
-        return this
-    }
-
-    editTag(id, edits) {
-        const tag = this.tags.find(t=> t.id == id)
-        if (edits.name == '') throw new BloggerError("Name cannot be empty.");
-        if(edits.name && this.tags.find(t=>t.url_name == formatUrl(edits.name))) throw new BloggerError("Tag name already exists.") 
-        tag.edit(edits)
-    }
-
-    addTag(name, description, colour) {
-        const newTag = new Tag(name, description, colour)
-        if (!name && name == '') throw new BloggerError("Name cannot be empty.")
-        if (this.tags.find(t => t.url_name == newTag.url_name)) throw new BloggerError("Tag name already exists.")
-        this.pushTag(newTag)
-        return this
-    }
-
-    editAuthor(id, edits) {
-        const tag = this.tags.find(t=> t.id == id)
-        if (edits.name == '') throw new BloggerError("Name cannot be empty.");
-        if(edits.name && this.tags.find(t=>t.url_name == formatUrl(edits.name))) throw new BloggerError("Author name already exists.") 
-        tag.edit(edits)
-    }
-
-    addAuthor(name, bio) {
-        const newAuthor = new Author(name, bio)
-        if (!name && name == '') throw new BloggerError("Name cannot be empty.")
-        if (this.authors.find(a => a.url_name == newAuthor.url_name)) throw new BloggerError("Author name already exists.")
-        this.pushAuthor(newAuthor)
-        return this
-    }
-
-    getPosts() {
-        return this.posts.filter(p => !p.delete)
-    }
-
-    getTags() {
-        return this.tags.filter(t => !t.delete)
-    }
-
-    getAuthors() {
-        return this.authors.filter(a => !a.delete)
-    }
-
-    editTag(id, name) {
-        const tag = this.getTagById(id)
-        tag.name = name
+    // Load the tables from storage
+    load() {
+        this.#checkDirectoryStructure()
+        this.posts._load()
+        this.tags._load()
+        this.authors._load()
 
         return this
     }
+    
+    // Save the table to storage
+    save() {
+        this.#checkDirectoryStructure()
+        
+        this.posts._save()
 
-    // Add a post to the table
-    pushPost(data) {
-        if (this.posts.find(o => o.id == data.id)) { data.id = newId(); this.posts.push(data) }
-        else { this.posts.push(data) }
         return this
     }
-
-    // Add a tag to the table
-    pushTag(data) {
-        if (this.tags.find(o => o.id == data.id)) { data.id = newId(); this.tags.push(data) }
-        else { this.tags.push(data) }
-        return this
-    }
-
-    // Add an author to the table
-    pushAuthor(data) {
-        if (this.authors.find(o => o.id == data.id)) { data.id = newId(); this.authors.push(data) }
-        else { this.authors.push(data) }
-        return this
-    }
-
 }
 
