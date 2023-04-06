@@ -273,8 +273,9 @@ export class Blogger {
     // Save the table to storage
     save() {
         this.#checkDirectoryStructure()
-        
         this.posts._save()
+        this.tags._save()
+        this.authors._save()
 
         return this
     }
