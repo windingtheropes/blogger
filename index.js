@@ -2,7 +2,30 @@ import { readdirSync, readFileSync, writeFileSync, rmSync, existsSync, mkdirSync
 import { format, join } from "path"
 
 export const formatUrl = (text) => {
-    return text.replaceAll(' ', '-').toLowerCase()
+    const allowed = (() => {
+        const allowedStr = 'abcdefghijklmnopqrstuvwxyz1234567890-_'
+        const c = []
+        for(let i=0; i<allowedStr.length; i++) {
+            c.push(allowedStr.charAt(i))
+        }
+        return c
+    })()
+    
+    let st = ''
+    for(let c in text) {
+        const char = text.charAt(c)
+        if(!allowed.find(a => a == char.toLowerCase())) {
+            if(c == text.length -1) {
+                continue
+            }
+            else {
+                st = `${st}-`
+                continue
+            }
+        }
+        st = `${st}${char}`
+    }
+    return st
 }
 const newId = () => {
     return new Date().getTime() - 1680292406980 + (Math.floor(Math.random() * 1000)).toString()
@@ -80,7 +103,7 @@ export class BloggerTable {
 
     get content() {
         // only provide posts that are not cached for deletion, AND remove fields like _delete and saved
-        return this._content.filter(o => o._delete == false).map(i => {delete i._delete; delete i.saved; return i})
+        return this._content.filter(o => o._delete == false)
     }
 
     push(data) {
