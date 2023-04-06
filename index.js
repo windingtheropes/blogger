@@ -21,10 +21,10 @@ export class BloggerObject {
         this.url_name = formatUrl(name);
         this.id = id;
         this.saved = false;
-        this.delete = false;
+        this._delete = false;
     }
-    delete() {
-        this.delete = true
+    remove() {
+        this._delete = true
     }
     edit(edits) {
         const ignore = ['saved', 'id', 'url_name']
@@ -79,7 +79,8 @@ export class BloggerTable {
     }
 
     get content() {
-        return this._content.filter(o => o.delete == false)
+        // only provide posts that are not cached for deletion, AND remove fields like _delete and saved
+        return this._content.filter(o => o._delete == false).map(i => {delete i._delete; delete i.saved; return i})
     }
 
     push(data) {
@@ -96,9 +97,9 @@ export class BloggerTable {
             const objectToSave = { ...o }
             delete objectToSave.saved
             delete objectToSave.url_name
-            delete objectToSave.delete
+            delete objectToSave._delete
 
-            if (o.delete) {
+            if (o._delete) {
                 rmSync(join(this.storageDir, o.id.toString()));
                 this._content = this._content.filter(obj => obj.id !== o.id);
             }
@@ -160,7 +161,7 @@ export class TagsTable extends BloggerTable {
         return tag
     }
 
-    addPost(data) {
+    addTag(data) {
         if(!data instanceof this.childType) throw new BloggerError("Data does not match childType.")
         if (!data.name || data.name == '') throw new BloggerError("Name cannot be empty.")
         if (this._content.find(p => p.url_name == data.url_name)) throw new BloggerError("Post name already exists.")
