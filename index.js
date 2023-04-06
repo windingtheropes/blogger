@@ -25,7 +25,7 @@ export const formatUrl = (text) => {
         }
         st = `${st}${char}`
     }
-    return st
+    return st.toLowerCase()
 }
 const newId = () => {
     return new Date().getTime() - 1680292406980 + (Math.floor(Math.random() * 1000)).toString()
