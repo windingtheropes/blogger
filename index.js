@@ -15,7 +15,7 @@ export const formatUrl = (text) => {
     for(let c in text) {
         const char = text.charAt(c)
         if(!allowed.find(a => a == char.toLowerCase())) {
-            if(c == text.length -1) {
+            if(c == text.length -1 || c == 0) {
                 continue
             }
             else {
