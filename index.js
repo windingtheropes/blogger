@@ -250,11 +250,13 @@ export class Blogger {
     authors;
 
     constructor(storageDir = './blog') {
-        this.storageDir = storageDir,
-            this.posts = new PostsTable(this.storageDir),
-            this.tags = new TagsTable(this.storageDir),
-            this.authors = new AuthorsTable(this.storageDir)
-        }
+        this.storageDir = storageDir;
+        this.posts = new PostsTable(this.storageDir);
+        this.tags = new TagsTable(this.storageDir);
+        this.authors = new AuthorsTable(this.storageDir);
+
+        this.load()
+    }
     #checkDirectoryStructure() {
         if (!existsSync(join(this.storageDir, 'authors'))) { mkdirSync(join(this.storageDir, 'authors')) }
         if (!existsSync(join(this.storageDir, 'posts'))) { mkdirSync(join(this.storageDir, 'posts')) }
