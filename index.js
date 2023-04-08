@@ -123,7 +123,7 @@ export class BloggerTable {
             delete objectToSave._delete
 
             if (o._delete) {
-                rmSync(join(this.storageDir, o.id.toString()));
+                rmSync(join(this.storageDir, dir, o.id.toString()));
                 this._content = this._content.filter(obj => obj.id !== o.id);
             }
             else {
